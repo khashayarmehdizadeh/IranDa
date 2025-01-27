@@ -12,9 +12,11 @@ cities = pd.DataFrame([
     {"name": "Shiraz", "lat": 29.5926, "lon": 52.5836, "pop": 1565572},
     {"name": "Tabriz", "lat": 38.0962, "lon": 46.2738, "pop": 1558693},
     {"name": "Qom", "lat": 34.6416, "lon": 50.8746, "pop": 1201158},
-    {"name": "Ahvaz", "lat": 31.3183, "lon": 48.6706, "pop": 1184788},
+    {"name": "Ahvaz", "lat": 31.35, "lon": 48.75, "pop": 1184788},
     {"name": "Kermanshah", "lat": 34.3277, "lon": 47.0778, "pop": 952285},
-    {"name": "Urmia", "lat": 37.5522, "lon": 45.0761, "pop": 736224}
+    {"name": "Urmia", "lat": 37.5522, "lon": 45.0761, "pop": 736224},
+    {"name": "Khuzestan", "lat": 31.3273, "lon": 48.694, "pop": 4710590},
+    {"name": "Sistan", "lat": 29.49, "lon": 60.86, "pop": 2775014},
 ])
 
 # اپلیکیشن Dash
