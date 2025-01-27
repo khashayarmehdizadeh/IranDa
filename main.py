@@ -1,7 +1,10 @@
-import plotly.graph_objects as go
+import dash 
+from dash import dcc, html, Input, Output
+import pandas as pd
+import plotly.express as px
 
-# اطلاعات شهرها
-cities = [
+# داده‌های شهرها (شامل نام، مختصات جغرافیایی، و جمعیت)
+cities = pd.DataFrame([
     {"name": "Tehran", "lat": 35.6892, "lon": 51.3890, "pop": 8693706},
     {"name": "Mashhad", "lat": 36.2605, "lon": 59.6168, "pop": 3001184},
     {"name": "Isfahan", "lat": 32.6539, "lon": 51.6660, "pop": 1961260},
@@ -12,51 +15,91 @@ cities = [
     {"name": "Ahvaz", "lat": 31.3183, "lon": 48.6706, "pop": 1184788},
     {"name": "Kermanshah", "lat": 34.3277, "lon": 47.0778, "pop": 952285},
     {"name": "Urmia", "lat": 37.5522, "lon": 45.0761, "pop": 736224}
-]
+])
 
-# ایجاد نقشه با Plotly
-fig = go.Figure()
+# اپلیکیشن Dash
+app = dash.Dash(__name__)
 
-# تعریف رنگ‌های متفاوت بر اساس جمعیت
-color_scale = ["#f94144", "#f3722c", "#f8961e", "#f9844a", "#43aa8b", "#577590"]
+#داشبورد طراحی بخش رابط کاربری
+app.layout = html.Div([
 
-# افزودن نقاط شهرها
-for city in cities:
-    population_index = min(len(color_scale) - 1, city["pop"] // 2000000)  # تعیین رنگ بر اساس جمعیت
-    fig.add_trace(go.Scattergeo(
-        lon=[city["lon"]],
-        lat=[city["lat"]],
-        text=f"{city['name']}<br>جمعیت: {city['pop']:,}",
-        marker=dict(
-            size=city["pop"] / 50000,
-            color=color_scale[population_index],
-            line=dict(width=1, color="black")
-        ),
-        name=city["name"]
-    ))
+    #عنوان داشبورد
+    html.H1("داشبورد تحلیل جمعیت شهر های ایران",style={"textAlign":"center"}),
+    #بخش تعاملی نقشه
+    dcc.Graph(
+        id="map", #شناسه نقشه
+        config={"scrollZoom":False}#زوم نقشه با اسکرول
 
-# تنظیمات نقشه
-fig.update_geos(
-    resolution=50,
-    showcountries=True,
-    countrycolor="darkgray",
-    showcoastlines=True,
-    coastlinecolor="lightblue",
-    showland=True,
-    landcolor="lightgray",
-    projection=dict(type="mercator"),
-    lataxis=dict(range=[25, 40]),  # محدوده عرض جغرافیایی
-    lonaxis=dict(range=[44, 63])    # محدوده طول جغرافیایی
-)
-
-# اضافه کردن لگند توضیح رنگ‌ها
-fig.update_layout(
-    title_text="10 شهر پرجمعیت ایران (اندازه و رنگ متناسب با جمعیت)",
-    geo=dict(
-        domain=dict(x=[0, 1], y=[0, 1]),
-        center=dict(lat=32, lon=53)
     ),
-    legend=dict(title="راهنمای رنگ")
-)
+    #اسلایدر برای فیلتر شهر ها و جمعیت
+    html.Label("فیلتر بر اساس جمعیت:"),
+    dcc.Slider(
+        id="population-slider", #شناسه
+        min=0, #مقدار کمینه
+        max=cities["pop"].max(), #مقدار بیشینه
+        step=1000000, #گام حرکت
+        value=cities["pop"].max(), #مقدار پیش فرض
+        marks={i: f"{i//1000000}M" for i in range(0,cities["pop"].max()+1,2000000)} #نمایش مقیاس روی اسلایدر
 
-fig.show()
+    ),
+    #نمودار میلیه ای
+    dcc.Graph(id="bar-chart") #نمودار مقایسه جمعیت
+    
+])
+
+#تعریف کال بک ها برای بروزرسانی داشبورد
+
+@app.callback(
+
+    #خروجی ها:نقشه و نمودار میله ای
+    [Output("map", "figure"),
+    Output("bar-chart", "figure")],
+    #ورودی :مقدار اسلایدر جمعیت
+    [Input("population-slider", "value")]
+)
+def update_dashboard(population_threshold):
+    """
+    این تابع داده هارابر اساس مقدار اسلایدر فیلتر کرده و نقشه و نمودار میله ای را بروزرسانی میکند
+    """
+    if population_threshold is None:
+        return {}, {}  # بازگرداندن نقشه و نمودار خالی در صورت مقدار نامعتبر
+
+    #فیلتر کردن شهر ها بر اساس مقدار جمعیت امتخاب شده
+    filtered_cities=cities[cities["pop"] <= population_threshold]
+    # اطمینان از وجود داده‌های فیلترشده
+    if filtered_cities.empty:
+        # اگر داده‌ای باقی نماند، نمودارها را خالی نمایش بده
+        return {}, {}
+    #نقشه تعاملی
+    map_fig=px.scatter_geo(
+        filtered_cities, #داده های فیلتر شده
+        lat="lat",lon="lon", #ستون های عرض و طول جغرافیای
+        size="pop", #اندازه نقاط بر اساس جمعیت
+        hover_name="name", #نمایش نام شهر ها هنگام هاور
+        title="موقیعت شهرها",
+        color="pop", #رنگ نقاط بر اساس جمعیت
+        projection="mercator" #نوع نمایش نقشه
+    )
+    #افزودن خطوط مرزی کشور ها
+    map_fig.update_geos(
+        showcountries=True, #نمایش خظوظ مرزی کشور ها
+        countrycolor="darkgray",
+        showcoastlines=True, #نمایش خطوط ساحلی
+        coastlinecolor="blue" # رنگ خطوط ساحلی
+    )
+
+
+    #نمودار میله ای برای مقایسه جمعیت شهر ها 
+    bar_fig =px.bar(
+        filtered_cities.sort_values("pop",ascending=False), #مرتب سازی شهر ها بر اساس جمعیت
+        x="name" , y="pop", #محور های نمودار
+        title="مقایسه جمعیت شهرها" ,
+        labels={"name":"شهر","pop":"جمعیت"} #برچسب محورها
+
+    )
+
+    return map_fig, bar_fig
+
+    
+if __name__=="__main__":
+    app.run_server(debug=True)
